@@ -1,46 +1,40 @@
 #define INPUT_BUTTON 2
 #define ENTER_BUTTON 3
-const int ledPin =  13;
+#define LED_PIN 13
 
 // variables will change:      
-byte lastButtonState=0;
-char keyPresses[10];
-char inputString[10];
-int  inputStart,inputStop;
-int currentIndex=0;
-int currentStringIndex=0;
-int resetCount=0;
+byte lastButtonState=0, buttonState;
+char keyPresses[10], inputString[10];
+int  inputStart, inputStop, inputTime;
+int  currentIndex = 0, currentStringIndex = 0, resetCount = 0;
 unsigned long lastInterruptTime=0;
-void handleEnter();
 char *target = "HOOS";
 
 void setup() {
   Serial.begin(115200);
-  // initialize the LED pin as an output:
-  pinMode(ledPin, OUTPUT);
-  // initialize the pushbutton pin as an input:
+  pinMode(LED_PIN, OUTPUT);
   pinMode(INPUT_BUTTON, INPUT);
   attachInterrupt(1, handleEnter, RISING);
 }
 
 void loop() {
-  byte buttonState;
-  if (!strcmp(inputString, target)) success();
+  if (!strcmp(inputString, target)) success(); 
+  
   buttonState = digitalRead(INPUT_BUTTON);
   if (buttonState!=lastButtonState){
     if (buttonState == HIGH) {
-      digitalWrite(ledPin, HIGH);
+      digitalWrite(LED_PIN, HIGH);
       inputStart=millis();
     } else {
-      digitalWrite(ledPin, LOW);
+      digitalWrite(LED_PIN, LOW);
       inputStop=millis();
-      int inputTime=inputStop-inputStart;
-      keyPresses[currentIndex]=inputTime < 300 ? '0' : '1';
+      inputTime=inputStop-inputStart;
+      keyPresses[currentIndex] = inputTime < 300 ? '0' : '1';
       currentIndex++;
     } 
-    delay(25);
-    lastButtonState=buttonState;
+    delay(100);
   }
+  lastButtonState=buttonState;
 }
 
 void handleEnter() {
@@ -51,16 +45,18 @@ void handleEnter() {
   lastInterruptTime=millis();
 
   char res = findChar();
-  if (res != ' ' && res != 'x') {
+  if (res == '\0') {
+    Serial.println(resetCount);
+    resetCount=resetCount+1;
+    if (resetCount >= 3) reset();
+  }
+  else if (res != '!') {
     inputString[currentStringIndex] = res;
     currentStringIndex++;
     resetCount=0;
-  } else if (res == 'x') {
-    Serial.println(resetCount);
-    resetCount=resetCount+1;
-    if (resetCount >= 3)
-      reset();
   }
+  else Serial.println("That's not Morse Code!");
+  
   currentIndex=0;
   Serial.println(inputString);
   return;
@@ -74,6 +70,7 @@ void reset() {
 
 void success() {
   Serial.println("SUCCESS");
+  exit(0);
 }
 
 
@@ -169,8 +166,8 @@ char findChar() {
   } else if (morseLetter == "11111") {
     return '0';
   } else if (morseLetter == "") {
-    return 'x';
+    return '\0';
   } else {
-    return ' ';
+    return '!';
   }
 }
