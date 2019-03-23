@@ -12,6 +12,7 @@ int  inputStart, inputStop, inputTime;
 int  currentIndex = 0, currentStringIndex = 0, resetCount = 0;
 unsigned long lastInterruptTime=0;
 char *target = "HOOS";
+bool inputChanged = false, calledReset = false, notMorse = false, successfulFinish = false, successReset = false, sickoMode = false;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2); // set the LCD address to 0x27 for a 16 chars and 2 line display
 
@@ -22,10 +23,15 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   pinMode(INPUT_BUTTON, INPUT);
   attachInterrupt(1, handleEnter, RISING);
+  //printLCD("HI THERE");
 }
 
 void loop() {
   if (!strcmp(inputString, target)) success(); 
+  if (inputChanged) { printLCD(inputString); inputChanged = false; }
+  if (calledReset) { printLCD(""); calledReset = false; }
+  if (sickoMode) { printLCD("SICKO MODE!"); sickoMode = false; }
+  //if (notMorse) { printLCD("NOT MORSE CODE"); notMorse = false; }
   
   buttonState = digitalRead(INPUT_BUTTON);
   if (buttonState!=lastButtonState){
@@ -55,17 +61,28 @@ void handleEnter() {
   if (res == '\0') {
     Serial.println(resetCount);
     resetCount=resetCount+1;
-    if (resetCount >= 3) reset();
+    Serial.println(successfulFinish);
+    if (!successfulFinish && resetCount >= 3) {
+      successfulFinish = false;
+      reset();
+    }
+    if (resetCount >= 10 && successfulFinish) {
+      successReset = true;
+      successfulFinish = false;
+    }
+  }
+  else if (res == '+') {
+    sickoMode = true;
   }
   else if (res != '!') {
-    printLCD(res);
     inputString[currentStringIndex] = res;
     currentStringIndex++;
     resetCount=0;
+    inputChanged = true;
   }
   else {
     Serial.println("That's not Morse Code!");
-    printLCD("NOT MORSE CODE");
+    notMorse = true;
   }
   
   currentIndex=0;
@@ -75,7 +92,7 @@ void handleEnter() {
 
 void reset() {
   Serial.println("RESET");
-  printLCD("RESET");
+  calledReset = true;
   for (int i=0; i < 10; i++) { keyPresses[i] = '\0'; inputString[i] = '\0'; }
   resetCount = currentStringIndex = 0;
 }
@@ -83,7 +100,15 @@ void reset() {
 void success() {
   Serial.println("SUCCESS");
   printLCD("SUCCESS");
-  exit(0);
+  successfulFinish = true;
+  delay(1000);
+  while (!successReset) delay(500);
+  successReset = false;
+  inputChanged = false; 
+  calledReset = false; 
+  notMorse = false; 
+  successfulFinish = false;
+  reset();
 }
 
 void printLCD(char c[]) {
@@ -182,6 +207,8 @@ char findChar() {
     return '9';
   } else if (morseLetter == "11111") {
     return '0';
+  } else if (morseLetter == "1111111111") {
+    return '+';
   } else if (morseLetter == "") {
     return '\0';
   } else {
