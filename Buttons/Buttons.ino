@@ -9,7 +9,7 @@
 byte lastButtonState=0, buttonState;
 char keyPresses[10], inputString[10];
 int  inputStart, inputStop, inputTime;
-int  currentIndex = 0, currentStringIndex = 0, resetCount = 0;
+int  currentIndex = 0, currentStringIndex = 0, resetCount = 0, letterCount = 0;
 unsigned long lastInterruptTime=0;
 char *target = "HOOS";
 bool inputChanged = false, calledReset = false, notMorse = false, successfulFinish = false, successReset = false, sickoMode = false;
@@ -27,7 +27,10 @@ void setup() {
 }
 
 void loop() {
-  if (!strcmp(inputString, target)) success(); 
+  if (!strcmp(inputString, target)) success();
+  if (!strcmp(inputString, "WEED")) {printLCD("420, dude!"); inputChanged = false;} 
+  if (!strcmp(inputString, "GIZMO")) {printLCD("We build stuff!"); inputChanged = false;}
+  
   if (inputChanged) { printLCD(inputString); inputChanged = false; }
   if (calledReset) { printLCD(""); calledReset = false; }
   if (sickoMode) { printLCD("SICKO MODE!"); sickoMode = false; }
@@ -75,6 +78,8 @@ void handleEnter() {
     sickoMode = true;
   }
   else if (res != '!') {
+    letterCount++;
+    if (letterCount >= 10) {reset();}
     inputString[currentStringIndex] = res;
     currentStringIndex++;
     resetCount=0;
@@ -93,6 +98,7 @@ void handleEnter() {
 void reset() {
   Serial.println("RESET");
   calledReset = true;
+  letterCount = 0;
   for (int i=0; i < 10; i++) { keyPresses[i] = '\0'; inputString[i] = '\0'; }
   resetCount = currentStringIndex = 0;
 }
@@ -207,7 +213,7 @@ char findChar() {
     return '9';
   } else if (morseLetter == "11111") {
     return '0';
-  } else if (morseLetter == "1111111111") {
+  } else if (morseLetter == "1111100000") {
     return '+';
   } else if (morseLetter == "") {
     return '\0';
